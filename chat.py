@@ -148,7 +148,7 @@ def listen(ws):
 
     chats.remove(client_id)
 
-@app.route('/register')
+@app.route('/register', methods=['POST'])
 def register():
     """
     Register a client and get an ID
