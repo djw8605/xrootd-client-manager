@@ -62,15 +62,17 @@ class ChatBackend(object):
         Automatically discards invalid connections."""
         try:
             self.clients[client].send(data)
-        except Exception:
+        except Exception as e:
+            app.logger.warning("Failed to send to client: {}".format(str(e)))
             self.remove(client)
         
     def remove(self, client_id):
         """
         Remove the id
         """
+        app.logger.debug("Removing client: {}".format(client_id))s
         redis.srem(XROOTD_CLIENT, client_id)
-        redis.delete(client_id)
+        redis.expire(client_id, 30)
         del self.clients[client_id]
     
     def get_workers(self):
@@ -126,6 +128,7 @@ def send_command():
     command = {
         'command': 'ping'
     }
+    app.logger.info(u'Inserting message: {}'.format(message))
     redis.publish(REDIS_CHAN, json.dumps(command))
     return "", 200
 
@@ -159,6 +162,7 @@ def listen(ws):
         # Context switch while `ChatBackend.start` is running in the background.
         gevent.sleep(1)
 
+    app.logger.debug("Client disconnected: {}".format(client_id))
     chats.remove(client_id)
 
 @app.route('/register', methods=['POST'])
