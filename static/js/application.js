@@ -17,7 +17,7 @@ $( document ).ready(function() {
   }
 
   $("#ping-button").click(function(event){
-    e.preventDefault();
+    event.preventDefault();
     $.post("/send-command").done(function(data) {
       console.log("Successful in the POST to send-command");
     })
