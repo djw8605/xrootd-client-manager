@@ -11,7 +11,7 @@ import os
 import redis
 import gevent
 from flask import Flask, render_template, request, session
-from flask_socketio import SocketIO, disconnect
+from flask_socketio import SocketIO, disconnect, send
 import logging
 import json
 import uuid
@@ -92,10 +92,10 @@ class ChatBackend(object):
 
     def start(self):
         """Maintains Redis subscription in the background."""
-        gevent.spawn(self.run)
+        socketio.start_background_task(self.run)
 
-
-
+chats = ChatBackend()
+chats.start()
 
 @app.route('/')
 def hello():
@@ -138,7 +138,10 @@ def listen():
     if not register_worked:
         disconnect()
         return "Client not registered", 400
-        
+
+@socketio.on('connect')
+def default_listen():
+    send("hi")
 
 @socketio.on('disconnect', namespace='/listen')
 def on_disconnect():
@@ -151,7 +154,6 @@ def register():
     """
     Register a client and get an ID
     """
-
     if 'Authorization' not in request.headers:
         return "Not authorized", 401
 
@@ -165,13 +167,14 @@ def register():
     to_return = {
         'client_id': client_id
     }
-    return to_return
+    return json.dumps(to_return)
 
 
 
-if __name__ == '__main__':
-    chats = ChatBackend()
+if __name__ == "__main__":
+    print("In main")
     chats.start()
     socketio.run(app)
+    print("after socktio.run")
 
 

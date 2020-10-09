@@ -1,1 +1,1 @@
-web: gunicorn -k flask_sockets.worker chat:app
+web: gunicorn --worker-class eventlet -w 1 chat:app --log-level debug
