@@ -35,6 +35,8 @@ class ChatBackend(object):
         self.clients = {}
         self.pubsub = redis.pubsub()
         self.pubsub.subscribe(REDIS_CHAN)
+        # When I first start up, flush redis
+        redis.flushall()
 
     def __iter_data(self):
         for message in self.pubsub.listen():
