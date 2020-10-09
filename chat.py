@@ -128,7 +128,7 @@ def send_command():
     command = {
         'command': 'ping'
     }
-    app.logger.info(u'Inserting message: {}'.format(message))
+    app.logger.info(u'Inserting message: {}'.format(json.dumps(command)))
     redis.publish(REDIS_CHAN, json.dumps(command))
     return "", 200
 
