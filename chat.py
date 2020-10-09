@@ -87,7 +87,7 @@ class ChatBackend(object):
     def run(self):
         """Listens for new messages in Redis, and sends them to clients."""
         for data in self.__iter_data():
-            socketio.send(data)
+            socketio.emit('command', data)
 
     def start(self):
         """Maintains Redis subscription in the background."""
@@ -104,7 +104,7 @@ def hello():
 def get_clients():
     workers = chats.get_workers()
     print(workers)
-    return workers
+    return json.dumps(workers)
 
 @app.route('/getnumclients')
 def get_num_clients():
@@ -120,12 +120,11 @@ def send_command():
     redis.publish(REDIS_CHAN, json.dumps(command))
     return "", 200
 
-@socketio.on('connect', namespace='/listen')
+@socketio.on('connect')
 def listen():
     """Sends outgoing chat messages, via `ChatBackend`."""
 
     app.logger.info("Connection received")
-    logging.info("Connection received")
     # Save the uuid from the client
     if 'id' not in request.args:
         disconnect()
@@ -138,11 +137,7 @@ def listen():
         disconnect()
         return "Client not registered", 400
 
-@socketio.on('connect')
-def default_listen():
-    send("hi")
-
-@socketio.on('disconnect', namespace='/listen')
+@socketio.on('disconnect')
 def on_disconnect():
     client_id = session['client_id']
     app.logger.debug("Client disconnected: {}".format(client_id))
