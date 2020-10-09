@@ -16,6 +16,13 @@ $( document ).ready(function() {
     });
   }
 
+  $("#ping-button").click(function(event){
+    e.preventDefault();
+    $.post("/send-command").done(function(data) {
+      console.log("Successful in the POST to send-command");
+    })
+  });
+
   getClients();
   
 });

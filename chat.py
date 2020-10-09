@@ -61,7 +61,7 @@ class ChatBackend(object):
         """Send given data to the registered client.
         Automatically discards invalid connections."""
         try:
-            client.send(data)
+            self.clients[client].send(data)
         except Exception:
             self.remove(client)
         
@@ -120,6 +120,14 @@ def get_clients():
 def get_num_clients():
     return str(chats.get_num_workers())
 
+
+@app.route('/send-command', methods=['POST'])
+def send_command():
+    command = {
+        'command': 'ping'
+    }
+    redis.publish(REDIS_CHAN, json.dumps(command))
+
 @sockets.route('/submit')
 def inbox(ws):
     """Receives incoming chat messages, inserts them into Redis."""
@@ -148,7 +156,7 @@ def listen(ws):
 
     while not ws.closed:
         # Context switch while `ChatBackend.start` is running in the background.
-        gevent.sleep(0.1)
+        gevent.sleep(1)
 
     chats.remove(client_id)
 
