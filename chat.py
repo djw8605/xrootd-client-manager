@@ -45,14 +45,15 @@ class ChatBackend(object):
     def add_worker(self, client, client_id):
         """Register a WebSocket connection for Redis updates."""
         # Check if we have already registered this client
-        if not redis.sismember(XROOTD_CLIENT, client_id):
+        if not redis.get(client_id):
             return False
+        redis.sadd(XROOTD_CLIENT, client_id)
         self.clients[client_id] = client
         return True
     
     def register_worker(self, client_id, client_details):
-        redis.sadd(XROOTD_CLIENT, client_id)
-        redis.set(client_id, json.dumps(client_details))
+
+        redis.setex(client_id, 30, json.dumps(client_details))
 
 
     def send(self, client, data):
