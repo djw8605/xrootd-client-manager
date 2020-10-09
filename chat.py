@@ -110,7 +110,9 @@ def hello():
 
 @app.route('/getclients')
 def get_clients():
-    return chats.get_workers()
+    workers = chats.get_workers()
+    print(workers)
+    return workers
 
 @app.route('/getnumclients')
 def get_num_clients():
