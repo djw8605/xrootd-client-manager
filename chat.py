@@ -160,7 +160,7 @@ def register():
     # Check the authorization bearer token
 
     # Add the client to the chat
-    client_details = request.json()
+    client_details = request.json
     # Generate a uuid for the client and return it
     client_id = uuid.uuid4()
     chats.register_worker(client_id, client_details)
