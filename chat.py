@@ -127,6 +127,7 @@ def send_command():
         'command': 'ping'
     }
     redis.publish(REDIS_CHAN, json.dumps(command))
+    return "", 200
 
 @sockets.route('/submit')
 def inbox(ws):
