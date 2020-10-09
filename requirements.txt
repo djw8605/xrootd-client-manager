@@ -1,6 +1,6 @@
 Flask
 flask_socketio
-greenlet
+eventlet >= 0.24.1
 gunicorn
 itsdangerous
 Jinja2
