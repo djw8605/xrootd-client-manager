@@ -8,11 +8,10 @@ This simple application uses WebSockets to run a primitive chat server.
 """
 
 import os
-import logging
 import redis
 import gevent
-from flask import Flask, render_template, request   
-from flask_sockets import Sockets
+from flask import Flask, render_template, request, session
+from flask_socketio import SocketIO
 import json
 import uuid
 
@@ -20,10 +19,13 @@ REDIS_URL = os.environ['REDIS_URL']
 REDIS_CHAN = 'chat'
 XROOTD_CLIENT = 'xrootd-clients'
 
+
+
 app = Flask(__name__)
 app.debug = 'DEBUG' in os.environ
+app.secret_key = os.environ['SESSION_KEY']
 
-sockets = Sockets(app)
+socketio = SocketIO(app)
 redis = redis.from_url(REDIS_URL)
 
 
@@ -42,29 +44,19 @@ class ChatBackend(object):
                 app.logger.info(u'Sending message: {}'.format(data))
                 yield data
 
-    def add_worker(self, client, client_id):
+    def add_worker(self, client_id):
         """Register a WebSocket connection for Redis updates."""
         # Check if we have already registered this client
         if not redis.get(client_id):
             return False
         redis.persist(client_id)
         redis.sadd(XROOTD_CLIENT, client_id)
-        self.clients[client_id] = client
+        self.clients[client_id] = 1
         return True
     
     def register_worker(self, client_id, client_details):
 
         redis.setex(client_id, 30, json.dumps(client_details))
-
-
-    def send(self, client, data):
-        """Send given data to the registered client.
-        Automatically discards invalid connections."""
-        try:
-            self.clients[client].send(data)
-        except Exception as e:
-            app.logger.warning("Failed to send to client: {}".format(str(e)))
-            self.remove(client)
         
     def remove(self, client_id):
         """
@@ -97,15 +89,13 @@ class ChatBackend(object):
     def run(self):
         """Listens for new messages in Redis, and sends them to clients."""
         for data in self.__iter_data():
-            for client in self.clients:
-                gevent.spawn(self.send, client, data)
+            socketio.send(data)
 
     def start(self):
         """Maintains Redis subscription in the background."""
         gevent.spawn(self.run)
 
-chats = ChatBackend()
-chats.start()
+
 
 
 @app.route('/')
@@ -132,36 +122,24 @@ def send_command():
     redis.publish(REDIS_CHAN, json.dumps(command))
     return "", 200
 
-@sockets.route('/submit')
-def inbox(ws):
-    """Receives incoming chat messages, inserts them into Redis."""
-    while not ws.closed:
-        # Sleep to prevent *constant* context-switches.
-        gevent.sleep(0.1)
-        message = ws.receive()
-
-        if message:
-            app.logger.info(u'Inserting message: {}'.format(message))
-            redis.publish(REDIS_CHAN, message)
-
-@sockets.route('/listen')
-def listen(ws):
+@socketio.on('connect', namespace='/listen')
+def listen():
     """Sends outgoing chat messages, via `ChatBackend`."""
 
+    app.logger.info("Connection received")
     # Save the uuid from the client
     if 'id' not in request.args:
         return "No id in request", 400
     
     client_id = request.args['id']
-
-    register_worked = chats.add_worker(ws, client_id)
+    session['client_id'] = client_id
+    register_worked = chats.add_worker(client_id)
     if not register_worked:
         return "Client not registered", 400
 
-    while not ws.closed:
-        # Context switch while `ChatBackend.start` is running in the background.
-        gevent.sleep(1)
-
+@socketio.on('disconnect', namespace='/listen')
+def disconnect():
+    client_id = session['client_id']
     app.logger.debug("Client disconnected: {}".format(client_id))
     chats.remove(client_id)
 
@@ -185,3 +163,12 @@ def register():
         'client_id': client_id
     }
     return to_return
+
+
+
+if __name__ == '__main__':
+    chats = ChatBackend()
+    chats.start()
+    socketio.run(app)
+
+
