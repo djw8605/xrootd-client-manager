@@ -162,7 +162,7 @@ def register():
     # Add the client to the chat
     client_details = request.json
     # Generate a uuid for the client and return it
-    client_id = uuid.uuid4()
+    client_id = str(uuid.uuid4())
     chats.register_worker(client_id, client_details)
     to_return = {
         'client_id': client_id
