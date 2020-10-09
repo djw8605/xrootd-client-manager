@@ -117,7 +117,7 @@ def get_clients():
 
 @app.route('/getnumclients')
 def get_num_clients():
-    return chats.get_num_workers()
+    return str(chats.get_num_workers())
 
 @sockets.route('/submit')
 def inbox(ws):
