@@ -70,7 +70,7 @@ class ChatBackend(object):
         """
         Remove the id
         """
-        app.logger.debug("Removing client: {}".format(client_id))s
+        app.logger.debug("Removing client: {}".format(client_id))
         redis.srem(XROOTD_CLIENT, client_id)
         redis.expire(client_id, 30)
         del self.clients[client_id]
