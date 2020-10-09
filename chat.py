@@ -9,7 +9,6 @@ This simple application uses WebSockets to run a primitive chat server.
 
 import os
 import redis
-import gevent
 from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO, disconnect, send
 import logging
