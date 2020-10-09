@@ -1,7 +1,5 @@
 Flask
-Flask-Sockets
-gevent
-gevent-websocket
+flask_socketio
 greenlet
 gunicorn
 itsdangerous
