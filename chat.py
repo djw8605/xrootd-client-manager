@@ -47,6 +47,7 @@ class ChatBackend(object):
         # Check if we have already registered this client
         if not redis.get(client_id):
             return False
+        redis.persist(client_id)
         redis.sadd(XROOTD_CLIENT, client_id)
         self.clients[client_id] = client
         return True
