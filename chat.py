@@ -11,15 +11,14 @@ import os
 import redis
 import gevent
 from flask import Flask, render_template, request, session
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, disconnect
+import logging
 import json
 import uuid
 
 REDIS_URL = os.environ['REDIS_URL']
 REDIS_CHAN = 'chat'
 XROOTD_CLIENT = 'xrootd-clients'
-
-
 
 app = Flask(__name__)
 app.debug = 'DEBUG' in os.environ
@@ -127,18 +126,22 @@ def listen():
     """Sends outgoing chat messages, via `ChatBackend`."""
 
     app.logger.info("Connection received")
+    logging.info("Connection received")
     # Save the uuid from the client
     if 'id' not in request.args:
+        disconnect()
         return "No id in request", 400
     
     client_id = request.args['id']
     session['client_id'] = client_id
     register_worked = chats.add_worker(client_id)
     if not register_worked:
+        disconnect()
         return "Client not registered", 400
+        
 
 @socketio.on('disconnect', namespace='/listen')
-def disconnect():
+def on_disconnect():
     client_id = session['client_id']
     app.logger.debug("Client disconnected: {}".format(client_id))
     chats.remove(client_id)
