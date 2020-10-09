@@ -81,7 +81,7 @@ class ChatBackend(object):
         for client_id in client_ids:
             client = redis.get(client_id)
             if client is not None:
-                clients[client_id] = client
+                clients[client_id] = json.loads(client)
         return clients
 
     def get_num_workers(self):
