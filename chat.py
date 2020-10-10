@@ -114,7 +114,7 @@ chats.start()
 def hello():
     if not github.authorized:
         return redirect(url_for("github.login"))
-    if not 'github_id' not in session:
+    if 'github_id' not in session:
         resp = github.get("/user")
         assert resp.ok
         login=resp.json()["login"]
