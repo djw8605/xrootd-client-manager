@@ -14,7 +14,7 @@ from flask_socketio import SocketIO, disconnect, send
 import logging
 import json
 import uuid
-from flask_dance.consumer import OAuth2ConsumerBlueprint
+from flask_dance.contrib.github import make_github_blueprint, github
 
 REDIS_URL = os.environ['REDIS_URL']
 REDIS_CHAN = 'chat'
@@ -27,16 +27,11 @@ app.secret_key = os.environ['SESSION_KEY']
 socketio = SocketIO(app)
 redis = redis.from_url(REDIS_URL)
 
-osg_blueprint = OAuth2ConsumerBlueprint(
-    "osg_oauth", __name__,
-    client_id="cilogon:/client_id/4ec56214271d586c6979d08d4aa94343",
-    client_secret=os.environ['OSG_CILOGON'],
-    base_url="'https://cilogon.org/oauth2",
-    token_url="https://cilogon.org/oauth2/token",
-    authorization_url="https://cilogon.org/authorize",
-    scope="email, openid"
-)
-app.register_blueprint(osg_blueprint, url_prefix="/login")
+app.config["GITHUB_OAUTH_CLIENT_ID"] = os.environ.get("GITHUB_OAUTH_CLIENT_ID")
+app.config["GITHUB_OAUTH_CLIENT_SECRET"] = os.environ.get("GITHUB_OAUTH_CLIENT_SECRET")
+github_bp = make_github_blueprint()
+app.register_blueprint(github_bp, url_prefix="/login")
+
 
 class ChatBackend(object):
     """Interface for registering and updating WebSocket clients."""
