@@ -9,11 +9,12 @@ This simple application uses WebSockets to run a primitive chat server.
 
 import os
 import redis
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, url_for, redirect, flash
 from flask_socketio import SocketIO, disconnect, send
 import logging
 import json
 import uuid
+from flask_dance.consumer import OAuth2ConsumerBlueprint
 
 REDIS_URL = os.environ['REDIS_URL']
 REDIS_CHAN = 'chat'
@@ -26,6 +27,16 @@ app.secret_key = os.environ['SESSION_KEY']
 socketio = SocketIO(app)
 redis = redis.from_url(REDIS_URL)
 
+osg_blueprint = OAuth2ConsumerBlueprint(
+    "osg_oauth", __name__,
+    client_id="cilogon:/client_id/4ec56214271d586c6979d08d4aa94343",
+    client_secret=os.environ['OSG_CILOGON'],
+    base_url="'https://cilogon.org/oauth2",
+    token_url="https://cilogon.org/oauth2/token",
+    authorization_url="https://cilogon.org/authorize",
+    scope="email, openid"
+)
+app.register_blueprint(osg_blueprint, url_prefix="/login")
 
 class ChatBackend(object):
     """Interface for registering and updating WebSocket clients."""
@@ -95,6 +106,14 @@ class ChatBackend(object):
 
 chats = ChatBackend()
 chats.start()
+
+#@app.route('/login')
+#def login():
+#    if not osg_blueprint.authorized:
+#        return redirect(url_for("google.login"))
+#    resp = google.get("/userinfo")
+#    assert resp.ok, resp.text
+#    return "You are {email} on Google".format(email=resp.json()["email"])
 
 @app.route('/')
 def hello():
