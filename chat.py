@@ -111,16 +111,17 @@ chats.start()
 #    return "You are {email} on Google".format(email=resp.json()["email"])
 
 def authorized(func):
-    def auth_wrapper():
+    def wrapper(*args, **kwargs):
         if 'Authorization' in request.headers and request.headers['Authorization'] == "Bearer xyz":
             token_authorized = True
         if not github.authorized and not token_authorized:
             abort(401)
-        func()
-    return auth_wrapper
+        return func(*args, **kwargs)
+    wrapper.__name__ = func.__name__
+    return wrapper
 
 @app.route('/')
-def hello():
+def index():
     if not github.authorized:
         return redirect(url_for("github.login"))
     if 'github_id' not in session:
