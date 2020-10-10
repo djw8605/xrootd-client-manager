@@ -110,6 +110,15 @@ chats.start()
 #    assert resp.ok, resp.text
 #    return "You are {email} on Google".format(email=resp.json()["email"])
 
+def authorized(func):
+    def wrapper():
+        if 'Authorization' in request.headers and request.headers['Authorization'] == "Bearer xyz":
+            token_authorized = True
+        if not github.authorized and not token_authorized:
+            abort(401)
+        func()
+    return wrapper
+
 @app.route('/')
 def hello():
     if not github.authorized:
@@ -122,13 +131,9 @@ def hello():
     return render_template('index.html', login=session['github_id'])
 
 @app.route('/getclients')
+@authorized
 def get_clients():
     # The user must be github authorized, or have a bearer token
-    token_authorized = False
-    if 'Authorization' in request.headers and request.headers['Authorization'] == "Bearer xyz":
-        token_authorized = True
-    if not github.authorized and not token_authorized:
-        abort(401)
 
     workers = chats.get_workers()
     return json.dumps(workers)
@@ -139,6 +144,7 @@ def get_num_clients():
 
 
 @app.route('/send-command', methods=['POST'])
+@authorized
 def send_command():
     command = {
         'command': 'ping'
