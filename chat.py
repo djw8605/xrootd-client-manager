@@ -9,7 +9,7 @@ This simple application uses WebSockets to run a primitive chat server.
 
 import os
 import redis
-from flask import Flask, render_template, request, session, url_for, redirect, flash
+from flask import Flask, render_template, request, session, url_for, redirect, flash, abort
 from flask_socketio import SocketIO, disconnect, send
 import logging
 import json
@@ -123,8 +123,14 @@ def hello():
 
 @app.route('/getclients')
 def get_clients():
+    # The user must be github authorized, or have a bearer token
+    token_authorized = False
+    if 'Authorization' in request.headers and request.headers['Authorization'] == "Bearer xyz":
+        token_authorized = True
+    if not github.authorized and not token_authorized:
+        abort(401)
+
     workers = chats.get_workers()
-    print(workers)
     return json.dumps(workers)
 
 @app.route('/getnumclients')
