@@ -112,7 +112,14 @@ chats.start()
 
 @app.route('/')
 def hello():
-    return render_template('index.html')
+    if not github.authorized:
+        return redirect(url_for("github.login"))
+    if not 'github_id' not in session:
+        resp = github.get("/user")
+        assert resp.ok
+        login=resp.json()["login"]
+        session['github_id'] = login
+    return render_template('index.html', login=session['github_id'])
 
 @app.route('/getclients')
 def get_clients():
