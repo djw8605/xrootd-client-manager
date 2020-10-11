@@ -16,6 +16,7 @@ import json
 import uuid
 from flask_dance.contrib.github import make_github_blueprint, github
 import hashlib
+import jwt
 
 REDIS_URL = os.environ['REDIS_URL']
 REDIS_CHAN = 'chat'
@@ -33,6 +34,8 @@ app.config["GITHUB_OAUTH_CLIENT_ID"] = os.environ.get("GITHUB_OAUTH_CLIENT_ID")
 app.config["GITHUB_OAUTH_CLIENT_SECRET"] = os.environ.get("GITHUB_OAUTH_CLIENT_SECRET")
 github_bp = make_github_blueprint()
 app.register_blueprint(github_bp, url_prefix="/login")
+
+TOKEN_KEY = os.environ.get("TOKEN_KEY")
 
 
 class ChatBackend(object):
@@ -271,10 +274,18 @@ def register():
     """
     Register a client or server and get an ID
     """
-    if 'Authorization' not in request.headers:
+    # Check the format of the bearer token
+    if 'Authorization' not in request.headers and not request.headers['Authorization'].startswith("Bearer"):
         return "Not authorized", 401
 
     # Check the authorization bearer token
+    token_str = request.headers['Authorization'].split(" ")[1]
+    try:
+        jwt.decode(token_str, TOKEN_KEY, leeway=10, audience='https://xrootd-client-manager.opensciencegrid.org',
+                   algorithms=['HS256'], options={'require': ['exp', 'aud', 'scope']})
+    except jwt.exceptions.InvalidTokenError:
+        app.logger.exception("Failed validating JWT from client")
+        abort(401)
 
     # Check for the server in the query
     is_server = False
