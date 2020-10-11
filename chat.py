@@ -178,6 +178,7 @@ def on_disconnect():
     client_id = session['client_id']
     app.logger.debug("Client disconnected: {}".format(client_id))
     chats.remove(client_id)
+    emit('worker left', client_id, room="web")
 
 @app.route('/register', methods=['POST'])
 def register():

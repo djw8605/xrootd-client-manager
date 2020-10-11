@@ -1,7 +1,7 @@
 
 // A $( document ).ready() block.
 $( document ).ready(function() {
-  
+
   function getClients() {
     // Use ajax to get the clients real quick
     $.getJSON("/getclients", function(resp) {
@@ -10,7 +10,9 @@ $( document ).ready(function() {
         var row = $('<tr/>');
         row.append($('<td/>').html(key));
         row.append($('<td/>').html(value.hostname));
+        row.attr('id', key);
         $("#clients").append(row);
+
       }
       
     });
@@ -31,9 +33,15 @@ $( document ).ready(function() {
   socket.on('new worker', (node_details) => {
     console.log("New worker node")
     var row = $('<tr/>');
-    row.append($('<td/>').html(key));
-    row.append($('<td/>').html(value.hostname));
+    row.append($('<td/>').html(node_details.client_id));
+    row.append($('<td/>').html(node_details.hostname));
+    row.attr('id', node_details.client_id);
     $("#clients").append(row);
+  });
+
+  socket.on('worker left', (client_id) => {
+    // Remove the row from the table
+    $("#clients").remove("#" + client_id);
   });
 
   getClients();
