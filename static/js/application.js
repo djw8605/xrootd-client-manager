@@ -37,7 +37,8 @@ $( document ).ready(function() {
     row.append($('<td/>').html(node_details.hostname));
     row.attr('id', node_details.client_id);
     row.hide();
-    $("#clients").append(row).slideDown('slow');
+    $("#clients").append(row);
+    row.slideDown('slow');
   });
 
   socket.on('worker left', (client_id) => {
