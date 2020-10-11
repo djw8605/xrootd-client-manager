@@ -141,7 +141,7 @@ def index():
         assert resp.ok
         login=resp.json()["login"]
         session['github_id'] = login
-    return render_template('index.html', authenticated=False, login=session['github_id'])
+    return render_template('index.html', authenticated=True, login=session['github_id'])
 
 @app.route('/getclients')
 @authorized
