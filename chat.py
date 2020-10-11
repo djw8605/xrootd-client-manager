@@ -54,10 +54,12 @@ class ChatBackend(object):
     
     def register_worker(self, client_id, client_details):
 
-        redis.setex(client_id, 30, json.dumps(client_details))
+        redis_return = redis.setex(client_id, 30, json.dumps(client_details))
+        app.logger.debug("Redis registration return: {}".format(str(redis_return)))
     
     def register_server(self, server_id, server_details):
-        redis.setex(server_id, 30, json.dumps(server_details))
+        redis_return = redis.setex(server_id, 30, json.dumps(server_details))
+        app.logger.debug("Redis registration return: {}".format(str(redis_return)))
 
     def add_server(self, server_id):
         """Register a WebSocket connection for Redis updates."""
@@ -219,12 +221,12 @@ def listen():
 
     client_id = request.args['id']
     session['client_id'] = client_id
-    if not is_server and chats.add_worker(client_id):
-        app.logger.info("Client not registered")
+    if not is_server and not chats.add_worker(client_id):
+        app.logger.info("Worker {} not registered".format(client_id))
         disconnect()
         return "Client not registered", 400
-    if is_server and chats.add_server(client_id):
-        app.logger.info("Server not registered")
+    if is_server and not chats.add_server(client_id):
+        app.logger.info("Server {} not registered".format(client_id))
         disconnect()
         return "Server not registered", 400
     
@@ -282,8 +284,10 @@ def register():
     # Generate a uuid for the client and return it
     client_id = str(uuid.uuid4())
     if is_server:
+        app.logger.debug("Registering new server: {}".format(client_id))
         chats.register_server(client_id, client_details)
     else:
+        app.logger.debug("Registering new worker: {}".format(client_id))
         chats.register_worker(client_id, client_details)
 
     to_return = {
