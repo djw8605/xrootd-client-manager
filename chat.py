@@ -141,7 +141,7 @@ def send_command():
         'command': 'ping'
     }
     app.logger.info(u'Inserting message: {}'.format(json.dumps(command)))
-    emit('command', json.dumps(command), room="workers")
+    socketio.emit('command', json.dumps(command), room="workers")
     return "", 200
 
 @socketio.on('connect')
