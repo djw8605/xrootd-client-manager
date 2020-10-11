@@ -68,8 +68,17 @@ class ChatBackend(object):
         redis.sadd(XROOTD_SERVER, server_id)
         self.servers[server_id] = 1
         return True
+    
+    def remove_server(self, server_id):
+        """
+        Remove the id
+        """
+        app.logger.debug("Removing server: {}".format(server_id))
+        redis.srem(XROOTD_SERVER, server_id)
+        redis.expire(server_id, 30)
+        del self.servers[server_id]
         
-    def remove(self, client_id):
+    def remove_worker(self, client_id):
         """
         Remove the id
         """
@@ -158,6 +167,21 @@ def get_clients():
         cleaned_workers[cleaned_key] = value
     return json.dumps(cleaned_workers)
 
+@app.route('/getservers')
+@authorized
+def get_servers():
+    # The user must be github authorized, or have a bearer token
+
+    servers = chats.get_servers()
+    # Switch the client_id to sha sum of the client_id
+    cleaned_servers = {}
+    for key, value in servers.items():
+        m = hashlib.sha256()
+        m.update(key.encode('utf-8'))
+        cleaned_key = m.hexdigest()
+        cleaned_servers[cleaned_key] = value
+    return json.dumps(cleaned_servers)
+
 @app.route('/getnumclients')
 def get_num_clients():
     return str(chats.get_num_workers())
@@ -188,12 +212,23 @@ def listen():
         disconnect()
         return "No id in request", 400
     
+    is_server = False
+    if 'server' in request.args:
+        is_server = True
+
     client_id = request.args['id']
     session['client_id'] = client_id
-    if not chats.add_worker(client_id):
+    if not is_server and chats.add_worker(client_id):
         disconnect()
         return "Client not registered", 400
-    join_room("workers")
+    if is_server and chats.add_server(client_id):
+        disconnect()
+        return "Client not registered", 400
+    
+    if is_server:
+        join_room("servers")
+    else:
+        join_room("workers")
     
     m = hashlib.sha256()
     m.update(client_id.encode('utf-8'))
@@ -203,15 +238,25 @@ def listen():
     }
     details.update(json.loads(chats.get_worker_details(client_id)))
 
-    emit('new worker', details, room="web")
+    if is_server:
+        emit('new server', details, room="web")
+    else:
+        emit('new worker', details, room="web")
 
 @socketio.on('disconnect')
 def on_disconnect():
     if 'client_id' in session:
+        is_server = False
+        if 'server' in request.args:
+            is_server = True
         client_id = session['client_id']
         app.logger.debug("Client disconnected: {}".format(client_id))
-        chats.remove(client_id)
-        emit('worker left', client_id, room="web")
+        if is_server:
+            chats.remove_server(client_id)
+            emit('server left', client_id, room="web")
+        else:
+            chats.remove_worker(client_id)
+            emit('worker left', client_id, room="web")
 
 @app.route('/register', methods=['POST'])
 def register():
