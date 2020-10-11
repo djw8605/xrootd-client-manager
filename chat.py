@@ -209,6 +209,7 @@ def listen():
     app.logger.info("Connection received")
     # Save the uuid from the client
     if 'id' not in request.args:
+        app.logger.error("ID not in socket.io args")
         disconnect()
         return "No id in request", 400
     
@@ -219,11 +220,13 @@ def listen():
     client_id = request.args['id']
     session['client_id'] = client_id
     if not is_server and chats.add_worker(client_id):
+        app.logger.info("Client not registered")
         disconnect()
         return "Client not registered", 400
     if is_server and chats.add_server(client_id):
+        app.logger.info("Server not registered")
         disconnect()
-        return "Client not registered", 400
+        return "Server not registered", 400
     
     if is_server:
         join_room("servers")
