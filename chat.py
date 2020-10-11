@@ -153,7 +153,7 @@ def get_clients():
     cleaned_workers = {}
     for key, value in workers.items():
         m = hashlib.sha256()
-        m.update(key.decode())
+        m.update(key.encode('utf-8'))
         cleaned_key = m.hexdigest()
         cleaned_workers[cleaned_key] = value
     return json.dumps(cleaned_workers)
@@ -195,8 +195,11 @@ def listen():
         return "Client not registered", 400
     join_room("workers")
     
+    m = hashlib.sha256()
+    m.update(client_id.encode('utf-8'))
+    cleaned_key = m.hexdigest()
     details = {
-        'client_id': client_id
+        'client_id': cleaned_key
     }
     details.update(json.loads(chats.get_worker_details(client_id)))
 
