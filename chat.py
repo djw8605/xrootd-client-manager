@@ -15,10 +15,12 @@ import logging
 import json
 import uuid
 from flask_dance.contrib.github import make_github_blueprint, github
+import hashlib
 
 REDIS_URL = os.environ['REDIS_URL']
 REDIS_CHAN = 'chat'
 XROOTD_CLIENT = 'xrootd-clients'
+XROOTD_SERVER = 'xrootd-server'
 
 app = Flask(__name__)
 app.debug = 'DEBUG' in os.environ
@@ -38,6 +40,7 @@ class ChatBackend(object):
 
     def __init__(self):
         self.clients = {}
+        self.servers = {}
 
     def add_worker(self, client_id):
         """Register a WebSocket connection for Redis updates."""
@@ -52,6 +55,19 @@ class ChatBackend(object):
     def register_worker(self, client_id, client_details):
 
         redis.setex(client_id, 30, json.dumps(client_details))
+    
+    def register_server(self, server_id, server_details):
+        redis.setex(server_id, 30, json.dumps(server_details))
+
+    def add_server(self, server_id):
+        """Register a WebSocket connection for Redis updates."""
+        # Check if we have already registered this client
+        if not redis.get(server_id):
+            return False
+        redis.persist(server_id)
+        redis.sadd(XROOTD_SERVER, server_id)
+        self.servers[server_id] = 1
+        return True
         
     def remove(self, client_id):
         """
@@ -75,6 +91,19 @@ class ChatBackend(object):
                 clients[client_id.decode('utf-8')] = json.loads(client)
         return clients
     
+    def get_servers(self):
+        """
+        Return all workers and details about them
+        """
+        # Get all client ids
+        server_ids = redis.smembers(XROOTD_SERVER)
+        servers = {}
+        for server_id in server_ids:
+            server = redis.get(server_id)
+            if server is not None:
+                servers[server_id.decode('utf-8')] = json.loads(server)
+        return servers
+    
     def get_worker_details(self, client_id):
         """
         Return a single worker's details
@@ -92,14 +121,6 @@ class ChatBackend(object):
 
 chats = ChatBackend()
 
-#@app.route('/login')
-#def login():
-#    if not osg_blueprint.authorized:
-#        return redirect(url_for("google.login"))
-#    resp = google.get("/userinfo")
-#    assert resp.ok, resp.text
-#    return "You are {email} on Google".format(email=resp.json()["email"])
-
 def authorized(func):
     def wrapper(*args, **kwargs):
         if 'Authorization' in request.headers and request.headers['Authorization'] == "Bearer xyz":
@@ -113,13 +134,14 @@ def authorized(func):
 @app.route('/')
 def index():
     if not github.authorized:
-        return redirect(url_for("github.login"))
+        return render_template('index.html', authenticated=False)
+
     if 'github_id' not in session:
         resp = github.get("/user")
         assert resp.ok
         login=resp.json()["login"]
         session['github_id'] = login
-    return render_template('index.html', login=session['github_id'])
+    return render_template('index.html', authenticated=False, login=session['github_id'])
 
 @app.route('/getclients')
 @authorized
@@ -127,7 +149,14 @@ def get_clients():
     # The user must be github authorized, or have a bearer token
 
     workers = chats.get_workers()
-    return json.dumps(workers)
+    # Switch the client_id to sha sum of the client_id
+    cleaned_workers = {}
+    for key, value in workers.items():
+        m = hashlib.sha256()
+        m.update(key.decode())
+        cleaned_key = m.hashdigest()
+        cleaned_workers[cleaned_key] = value
+    return json.dumps(cleaned_workers)
 
 @app.route('/getnumclients')
 def get_num_clients():
@@ -175,36 +204,45 @@ def listen():
 
 @socketio.on('disconnect')
 def on_disconnect():
-    client_id = session['client_id']
-    app.logger.debug("Client disconnected: {}".format(client_id))
-    chats.remove(client_id)
-    emit('worker left', client_id, room="web")
+    if 'client_id' in session:
+        client_id = session['client_id']
+        app.logger.debug("Client disconnected: {}".format(client_id))
+        chats.remove(client_id)
+        emit('worker left', client_id, room="web")
 
 @app.route('/register', methods=['POST'])
 def register():
     """
-    Register a client and get an ID
+    Register a client or server and get an ID
     """
     if 'Authorization' not in request.headers:
         return "Not authorized", 401
 
     # Check the authorization bearer token
 
+    # Check for the server in the query
+    is_server = False
+    if 'server' in request.args:
+        # This is a server
+        is_server = True
+
     # Add the client to the chat
     client_details = request.json
     # Generate a uuid for the client and return it
     client_id = str(uuid.uuid4())
-    chats.register_worker(client_id, client_details)
+    if is_server:
+        chats.register_server(client_id, client_details)
+    else:
+        chats.register_worker(client_id, client_details)
+
     to_return = {
         'client_id': client_id
     }
     return json.dumps(to_return)
 
 
-
 if __name__ == "__main__":
     print("In main")
-    chats.start()
     socketio.run(app)
     print("after socktio.run")
 
