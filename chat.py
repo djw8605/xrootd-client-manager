@@ -154,7 +154,7 @@ def get_clients():
     for key, value in workers.items():
         m = hashlib.sha256()
         m.update(key.decode())
-        cleaned_key = m.hashdigest()
+        cleaned_key = m.hexdigest()
         cleaned_workers[cleaned_key] = value
     return json.dumps(cleaned_workers)
 
