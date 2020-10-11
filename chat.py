@@ -256,12 +256,15 @@ def on_disconnect():
             is_server = True
         client_id = session['client_id']
         app.logger.debug("Client disconnected: {}".format(client_id))
+        m = hashlib.sha256()
+        m.update(client_id.encode('utf-8'))
+        cleaned_key = m.hexdigest()
         if is_server:
             chats.remove_server(client_id)
-            emit('server left', client_id, room="web")
+            emit('server left', cleaned_key, room="web")
         else:
             chats.remove_worker(client_id)
-            emit('worker left', client_id, room="web")
+            emit('worker left', cleaned_key, room="web")
 
 @app.route('/register', methods=['POST'])
 def register():
