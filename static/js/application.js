@@ -49,7 +49,7 @@ $( document ).ready(function() {
   socket.on('new worker', (node_details) => {
     console.log("New worker node")
     var row = $('<tr/>');
-    row.append($('<td/>').html(node_details.client_id));
+    row.append($('<td/>').html(node_details.client_id.substring(0, 8)));
     row.append($('<td/>').html(node_details.hostname));
     row.attr('id', node_details.client_id);
     row.hide();
@@ -66,7 +66,7 @@ $( document ).ready(function() {
   socket.on('new server', (node_details) => {
     console.log("New server node")
     var row = $('<tr/>');
-    row.append($('<td/>').html(node_details.client_id));
+    row.append($('<td/>').html(node_details.client_id.substring(0, 8)));
     row.append($('<td/>').html(node_details.hostname));
     row.attr('id', node_details.client_id);
     row.hide();
