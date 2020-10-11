@@ -171,7 +171,7 @@ def listen():
     }
     details.update(json.loads(chats.get_worker_details(client_id)))
 
-    emit('new worker', json.dumps(details), room="web")
+    emit('new worker', details, room="web")
 
 @socketio.on('disconnect')
 def on_disconnect():
