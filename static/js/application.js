@@ -41,7 +41,8 @@ $( document ).ready(function() {
 
   socket.on('worker left', (client_id) => {
     // Remove the row from the table
-    $("#clients").remove("#" + client_id);
+    console.log("Worker node left: " + client_id);
+    $("#" + client_id).remove();
   });
 
   getClients();
