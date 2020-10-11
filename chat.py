@@ -10,7 +10,7 @@ This simple application uses WebSockets to run a primitive chat server.
 import os
 import redis
 from flask import Flask, render_template, request, session, url_for, redirect, flash, abort
-from flask_socketio import SocketIO, disconnect, send
+from flask_socketio import SocketIO, disconnect, send, join_room, leave_room, emit
 import logging
 import json
 import uuid
@@ -24,7 +24,7 @@ app = Flask(__name__)
 app.debug = 'DEBUG' in os.environ
 app.secret_key = os.environ['SESSION_KEY']
 
-socketio = SocketIO(app)
+socketio = SocketIO(app, redis=REDIS_URL)
 redis = redis.from_url(REDIS_URL)
 
 app.config["GITHUB_OAUTH_CLIENT_ID"] = os.environ.get("GITHUB_OAUTH_CLIENT_ID")
@@ -38,15 +38,6 @@ class ChatBackend(object):
 
     def __init__(self):
         self.clients = {}
-        self.pubsub = redis.pubsub()
-        self.pubsub.subscribe(REDIS_CHAN)
-
-    def __iter_data(self):
-        for message in self.pubsub.listen():
-            data = message.get('data')
-            if message['type'] == 'message':
-                app.logger.info(u'Sending message: {}'.format(data))
-                yield data
 
     def add_worker(self, client_id):
         """Register a WebSocket connection for Redis updates."""
@@ -83,6 +74,13 @@ class ChatBackend(object):
             if client is not None:
                 clients[client_id.decode('utf-8')] = json.loads(client)
         return clients
+    
+    def get_worker_details(self, client_id):
+        """
+        Return a single worker's details
+        """
+        return redis.get(client_id)
+        
 
     def get_num_workers(self):
         """
@@ -90,17 +88,9 @@ class ChatBackend(object):
         """
         return redis.scard(XROOTD_CLIENT)
 
-    def run(self):
-        """Listens for new messages in Redis, and sends them to clients."""
-        for data in self.__iter_data():
-            socketio.emit('command', data)
 
-    def start(self):
-        """Maintains Redis subscription in the background."""
-        socketio.start_background_task(self.run)
 
 chats = ChatBackend()
-chats.start()
 
 #@app.route('/login')
 #def login():
@@ -151,12 +141,17 @@ def send_command():
         'command': 'ping'
     }
     app.logger.info(u'Inserting message: {}'.format(json.dumps(command)))
-    redis.publish(REDIS_CHAN, json.dumps(command))
+    emit('command', json.dumps(command), room="workers")
     return "", 200
 
 @socketio.on('connect')
 def listen():
     """Sends outgoing chat messages, via `ChatBackend`."""
+    if 'github_id' in session:
+        # If it's github authorized, then it's a web user
+        # Send the user to the special web user room
+        join_room("web")
+        return
 
     app.logger.info("Connection received")
     # Save the uuid from the client
@@ -166,10 +161,17 @@ def listen():
     
     client_id = request.args['id']
     session['client_id'] = client_id
-    register_worked = chats.add_worker(client_id)
-    if not register_worked:
+    if not chats.add_worker(client_id):
         disconnect()
         return "Client not registered", 400
+    join_room("workers")
+    
+    details = {
+        'client_id': client_id
+    }
+    details.update(json.loads(chats.get_worker_details(client_id)))
+
+    emit('new worker', json.dumps(details), room="web")
 
 @socketio.on('disconnect')
 def on_disconnect():

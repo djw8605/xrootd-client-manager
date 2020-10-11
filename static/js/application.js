@@ -23,6 +23,19 @@ $( document ).ready(function() {
     })
   });
 
+  const socket = io();
+  socket.on('connect', () => {
+    console.log("Connected to server with socket.io");
+  });
+
+  socket.on('new worker', (node_details) => {
+    console.log("New worker node")
+    var row = $('<tr/>');
+    row.append($('<td/>').html(key));
+    row.append($('<td/>').html(value.hostname));
+    $("#clients").append(row);
+  });
+
   getClients();
   
 });
