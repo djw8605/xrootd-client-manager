@@ -138,6 +138,7 @@ chats = ChatBackend()
 
 def authorized(func):
     def wrapper(*args, **kwargs):
+        token_authorized = False
         if 'Authorization' in request.headers and request.headers['Authorization'] == "Bearer xyz":
             token_authorized = True
         if not github.authorized and not token_authorized:
@@ -210,11 +211,14 @@ def send_command():
 @socketio.on('connect')
 def listen():
     """Sends outgoing chat messages, via `ChatBackend`."""
-    if 'github_id' in session:
+    if 'github_id' in session and session['github_id'] in ALLOWED_USERS :
         # If it's github authorized, then it's a web user
         # Send the user to the special web user room
         join_room("web")
         return
+    if 'github_id' in session:
+        disconnect()
+        abort(401)
 
     app.logger.info("Connection received")
     # Save the uuid from the client
