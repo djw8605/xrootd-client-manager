@@ -22,6 +22,7 @@ REDIS_URL = os.environ['REDIS_URL']
 REDIS_CHAN = 'chat'
 XROOTD_CLIENT = 'xrootd-clients'
 XROOTD_SERVER = 'xrootd-server'
+ALLOWED_USERS = os.environ['ALLOWED_USERS'].split(",")
 
 app = Flask(__name__)
 app.debug = 'DEBUG' in os.environ
@@ -141,6 +142,8 @@ def authorized(func):
             token_authorized = True
         if not github.authorized and not token_authorized:
             abort(401)
+        if github.authorized and 'github_id' in session and session['github_id'] not in ALLOWED_USERS:
+            abort(401)
         return func(*args, **kwargs)
     wrapper.__name__ = func.__name__
     return wrapper
@@ -155,6 +158,8 @@ def index():
         assert resp.ok
         login=resp.json()["login"]
         session['github_id'] = login
+    if session['github_id'] not in ALLOWED_USERS:
+        return render_template('index.html', authenticated=False, login=session['github_id'], alert="Not in the list of allowed users")
     return render_template('index.html', authenticated=True, login=session['github_id'])
 
 @app.route('/getclients')

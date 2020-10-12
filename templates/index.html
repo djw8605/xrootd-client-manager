@@ -41,6 +41,12 @@
         </div>
       </div>
       
+      {% if alert is defined and login is defined and authenticated is False %}
+      <div class="alert alert-danger" role="alert">
+        User {{ login }}:  {{ alert }}.
+      </div>
+      {%endif %}
+
       {% if authenticated %}
       <h2>Servers</h2>
       <table class="table">
